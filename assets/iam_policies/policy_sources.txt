@@ -1,0 +1,5 @@
+Cluster Autoscaler: 
+    - https://docs.aws.amazon.com/eks/latest/userguide/autoscaling.html#cluster-autoscaler
+Loadbalancer Controller: 
+    - https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html
+    - curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.4.7/docs/install/iam_policy.json

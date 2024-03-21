@@ -1,0 +1,5 @@
+dotted-dict
+kubernetes
+mergedeep
+requests
+ruamel.yaml

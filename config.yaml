@@ -1,0 +1,208 @@
+required_binaries:
+  # https://helm.sh/docs/intro/install/
+  - helm
+  # https://kubernetes.io/docs/tasks/tools/
+  - kubectl
+  # https://openunison.github.io/documentation/ouctl/
+  - ouctl
+  # https://developer.1password.com/docs/cli/get-started/
+  - op
+
+helm:
+  repos:
+    aws-load-balancer-controller: https://aws.github.io/eks-charts
+    bitnami: https://charts.bitnami.com/bitnami
+    kubernetes-dashboard: https://kubernetes.github.io/dashboard/
+    evryfs: https://evryfs.github.io/helm-charts/
+    fairwinds-stable: https://charts.fairwinds.com/stable
+    ingress-nginx: https://kubernetes.github.io/ingress-nginx
+    jetstack: https://charts.jetstack.io
+    onepassword: https://1password.github.io/connect-helm-charts/
+    redis: oci://registry-1.docker.io/bitnamicharts/redis
+    runix: https://helm.runix.net
+    sumologic: https://sumologic.github.io/sumologic-kubernetes-collection
+    tremolo: https://nexus.tremolo.io/repository/helm/
+
+addons:
+  cert_manager:
+    # env_vars:
+    # - CF_API_KEY
+    # - SISU_CA_CERT (base64 encoded)
+    # - SISU_CA_KEY (base64 encoded)
+    enabled: true
+    version: 1.10.1
+    cluster_issuer:
+      enabled: true
+      issuers:
+        - name: letsencrypt
+          type: acme
+          server: https://acme-v02.api.letsencrypt.org/directory
+          email: accounts@sisu.ai
+          zones:
+            - sisu.ai
+            - sisudata.com
+        - name: letsencrypt-staging
+          type: acme
+          server: https://acme-staging-v02.api.letsencrypt.org/directory
+          email: accounts@sisu.ai
+          zones:
+            - sisu.ai
+            - sisudata.com
+        - name: sisu-ca
+          type: private
+          secret: sisu-ca-tls
+
+  cluster_autoscaler:
+    enabled: false
+    serviceAccount:
+      create: false
+
+  dashboard:
+    enabled: false
+
+  ecr_proxy:
+    enabled: true
+    version: 1.5.1
+    ecr_registry: 855250002930.dkr.ecr.us-west-2.amazonaws.com
+
+  external_dns:
+    # env_vars:
+    # - CF_API_KEY
+    enabled: true
+    version: 6.12.1
+    cloudflare_email: accounts@sisu.ai
+    zones:
+      - sisu.ai
+      - sisudata.com
+
+  nginx_ingress:
+    enabled: true
+    depends_on:
+      - cert-manager
+      - external-dns
+    endpoints:
+      - public
+      - private
+    issuer: letsencrypt
+    zones:
+      - sisu.ai
+      - sisudata.com
+    # hostname to add to sisu.ai for passthrough services
+    additional_dns:
+      - workflow-manager
+    # enable tcp passthrough to specific service endpoint
+    additional_ports:
+      tcp:
+        8085: sisu/workflow-manager:8085
+    # Have public endpoints only reachable from Cloudflare
+    # https://www.cloudflare.com/ips/
+    cloudflare_ips:
+      - 173.245.48.0/20
+      - 103.21.244.0/22
+      - 103.22.200.0/22
+      - 103.31.4.0/22
+      - 141.101.64.0/18
+      - 108.162.192.0/18
+      - 190.93.240.0/20
+      - 188.114.96.0/20
+      - 197.234.240.0/22
+      - 198.41.128.0/17
+      - 162.158.0.0/15
+      - 104.16.0.0/13
+      - 104.24.0.0/14
+      - 172.64.0.0/13
+      - 131.0.72.0/22
+
+  onepassword:
+    # env_vars:
+    # - OP_CONNECT_TOKEN
+    enabled: true
+    credentials_file: 1password-credentials.json
+    connect_version: 1.11.0
+    secrets_injector_version: 1.0.2
+    secrets_injector_chart_version: 1.0.0
+
+  openunison:
+    enabled: true
+    oauth_client_id: 752084851889-2i2k8v90aoo57epevr082mf1lo7ak5q2.apps.googleusercontent.com
+    service_account_email: svc-openunison@openunison.iam.gserviceaccount.com
+
+  pgadmin:
+    enabled: true
+    resources:
+      cpu: 500m
+      memory: 1Gi
+    version: 1.14.4
+
+  rbac_manager:
+    enabled: true
+    priorityclasses:
+      all:
+        - name: default
+          value: 10000
+          globalDefault: true
+          preemptionPolicy: Never
+          description: |
+            The default priority applied to pods without an explicitly declared priority
+            class. The default priority is used for most services, so it's set to a value
+            greater than the job-specific priority classes below.
+        - name: overprovisioning
+          value: -1
+          preemptionPolicy: Never
+          description: |
+            The priority class for overprovisioning.
+        - name: backend-job
+          labels:
+            app: backend-job
+          value: 5000
+          preemptionPolicy: PreemptLowerPriority
+      dev:
+        - name: e2e-backend-job
+          labels:
+            app: backend-job
+            environment-name: IntegrationTest
+            execute-mode: EXECUTE_MODE_ACTIVE
+          value: 4000
+          preemptionPolicy: PreemptLowerPriority
+        - name: scheduled-backend-job
+          labels:
+            app: backend-job
+            execute-mode: EXECUTE_MODE_SCHEDULED
+          value: 3000
+          preemptionPolicy: PreemptLowerPriority
+      prod:
+        - name: scheduled-backend-job
+          labels:
+            app: backend-job
+            execute-mode: EXECUTE_MODE_SCHEDULED
+          value: 4000
+          preemptionPolicy: PreemptLowerPriority
+        - name: slo-testing
+          labels:
+            app: backend-job
+            environment-name: Prod
+            organization-id: "496"
+          value: 3000
+          preemptionPolicy: PreemptLowerPriority
+        - name: canary-benchmarks
+          labels:
+            app: backend-job
+            environment-name: Prod
+            organization-id: "251"
+          value: 2000
+          preemptionPolicy: PreemptLowerPriority
+
+  redis:
+    enabled: true
+    version: 17.10.1
+    replica:
+      replicaCount: 3
+
+  sumologic:
+    # env vars:
+    # - SUMO_ACCESS_ID
+    # - SUMO_ACCESS_KEY
+    enabled: true
+    version: 3.13.0
+    nodeSelector:
+      nodegroup: addon

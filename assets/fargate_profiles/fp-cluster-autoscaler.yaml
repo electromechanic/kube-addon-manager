@@ -1,0 +1,13 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+  name: sisu-prod-eu-central-1-remote-dataplane
+  region: eu-central-1
+fargateProfiles:
+- name: fp-cluster-autoscaler
+  selectors:
+  - namespace: cluster-autoscaler
+  subnets:
+  - subnet-05ee810f3b72f817c
+  - subnet-0cb7c71d5a75086d7
+  - subnet-098fcf2763c135b56
